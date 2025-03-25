@@ -1,0 +1,181 @@
+databaseChangeLog:
+  - changeSet:
+      id: init-schema-1
+      author: your_name
+      changes:
+        - createTable:
+            tableName: site
+            columns:
+              - column:
+                  name: id
+                  type: INT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: status
+                  type: ENUM('INDEXING', 'INDEXED', 'FAILED')
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status_time
+                  type: DATETIME
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_error
+                  type: TEXT
+              - column:
+                  name: url
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+            indexes:
+              - index:
+                  name: idx_site_url
+                  columns:
+                    - column:
+                        name: url
+                        length: 255
+
+  - changeSet:
+      id: init-schema-2
+      author: your_name
+      changes:
+        - createTable:
+            tableName: page
+            columns:
+              - column:
+                  name: id
+                  type: INT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: site_id
+                  type: INT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_page_site
+                    references: site(id)
+              - column:
+                  name: path
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: code
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: content
+                  type: MEDIUMTEXT
+                  constraints:
+                    nullable: false
+            indexes:
+              - index:
+                  name: idx_page_site_path
+                  columns:
+                    - column:
+                        name: site_id
+                    - column:
+                        name: path
+                        length: 512
+
+  - changeSet:
+      id: init-schema-3
+      author: your_name
+      changes:
+        - createTable:
+            tableName: lemma
+            columns:
+              - column:
+                  name: id
+                  type: INT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: site_id
+                  type: INT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_lemma_site
+                    references: site(id)
+              - column:
+                  name: lemma
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: frequency
+                  type: INT
+                  constraints:
+                    nullable: false
+            indexes:
+              - index:
+                  name: idx_lemma_site_lemma
+                  unique: true
+                  columns:
+                    - column:
+                        name: site_id
+                    - column:
+                        name: lemma
+
+  - changeSet:
+      id: init-schema-4
+      author: your_name
+      changes:
+        - createTable:
+            tableName: index_words
+            columns:
+              - column:
+                  name: id
+                  type: INT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: page_id
+                  type: INT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_index_page
+                    references: page(id)
+              - column:
+                  name: lemma_id
+                  type: INT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_index_lemma
+                    references: lemma(id)
+              - column:
+                  name: rank_index
+                  type: FLOAT
+                  constraints:
+                    nullable: false
+            indexes:
+              - index:
+                  name: idx_index_page_lemma
+                  unique: true
+                  columns:
+                    - column:
+                        name: page_id
+                    - column:
+                        name: lemma_id
+              - index:
+                  name: idx_index_lemma
+                  columns:
+                    - column:
+                        name: lemma_id

@@ -1,0 +1,49 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/search_engine?useSSL=false&allowPublicKeyRetrieval=true
+    username: sa
+    password: Password124
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 30000
+      max-lifetime: 2000000
+      connection-timeout: 30000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+  
+  liquibase:
+    change-log: classpath:/db/changelog/db.changelog-master.yaml
+    enabled: true
+    parameters:
+      ignoreClasspathPrefix: true
+
+indexing-settings:
+  sites:
+    - url: https://www.svetlovka.ru/
+      name: svetlovka
+    - url: https://www.playback.ru/
+      name: playback
+
+user-agent-settings:
+  users:
+    - Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36
+    - Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36
+  referrer: http://www.google.com
+
+logging:
+  level:
+    root: INFO
+    org.springframework.web: DEBUG
+    searchengine: DEBUG
