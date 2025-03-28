@@ -19,4 +19,10 @@ public class SearchResponse {
         this.result = false;
         this.error = error;
     }
+
+    public SearchResponse(Integer count, List<DataSearchItem> data) {
+        this.count = count;
+        this.data = data;
+        this.result = true;
+    }
 }

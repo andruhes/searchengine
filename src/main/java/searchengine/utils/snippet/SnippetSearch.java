@@ -23,7 +23,7 @@ public class SnippetSearch {
 
         for (String word : text.split("([^а-яА-ЯA-Za-z])+")) {
             if (snippets.size() >= NUMBER_SNIPPETS) break;
-            
+
             List<String> normalFormsWord = finder.getNormalForms(word.toLowerCase());
             if (normalFormsWord.isEmpty()) continue;
 
@@ -50,10 +50,20 @@ public class SnippetSearch {
     }
 
     private static int adjustEndPosition(String text, int end, int maxExtension) {
-        // ... implementation ...
+        int newEnd = Math.min(end + maxExtension, text.length());
+        // Ищем ближайший пробел или конец строки
+        while (newEnd < text.length() && !Character.isWhitespace(text.charAt(newEnd))) {
+            newEnd++;
+        }
+        return newEnd;
     }
 
     private static int adjustStartPosition(String text, int start, int maxExtension) {
-        // ... implementation ...
+        int newStart = Math.max(start - maxExtension, 0);
+        // Ищем ближайший пробел или начало строки
+        while (newStart > 0 && !Character.isWhitespace(text.charAt(newStart))) {
+            newStart--;
+        }
+        return newStart;
     }
 }

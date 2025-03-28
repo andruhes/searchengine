@@ -1,87 +1,89 @@
 package searchengine.utils.morphology;
 
-import lombok.RequiredArgsConstructor;
-import org.apache.lucene.morphology.LuceneMorphology;
-import org.apache.lucene.morphology.english.EnglishLuceneMorphology;
-import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
-import java.io.IOException;
-import java.util.*;
+import lombok.extern.slf4j.Slf4j;
+import opennlp.tools.stemmer.PorterStemmer;
+import opennlp.tools.stemmer.snowball.SnowballStemmer;
+import opennlp.tools.tokenize.SimpleTokenizer;
 
-@RequiredArgsConstructor
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
+@Slf4j
 public class LemmaFinder {
-    private final LuceneMorphology luceneMorphologyRu;
-    private final LuceneMorphology luceneMorphologyEn;
-    private static final String[] particlesNames = {"МЕЖД", "ПРЕДЛ", "СОЮЗ", "ЧАСТ", "ARTICLE", "CONJ", "PREP"};
+    private static final Set<String> PARTICLES = Set.of(
+            "межд", "предл", "союз", "част", "article", "conj", "prep"
+    );
+
+    private final SnowballStemmer russianStemmer;
+    private final PorterStemmer englishStemmer;
+    private final SimpleTokenizer tokenizer;
+    private final Map<String, String> lemmaCache = new ConcurrentHashMap<>();
 
     public LemmaFinder() {
-        try {
-            this.luceneMorphologyRu = new RussianLuceneMorphology();
-            this.luceneMorphologyEn = new EnglishLuceneMorphology();
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to initialize morphology analyzers", e);
-        }
+        this.russianStemmer = new SnowballStemmer(SnowballStemmer.ALGORITHM.RUSSIAN);
+        this.englishStemmer = new PorterStemmer();
+        this.tokenizer = SimpleTokenizer.INSTANCE;
     }
 
     public Map<String, Integer> collectLemmas(String text) {
-        String[] words = arrayContainsWords(text);
-        HashMap<String, Integer> lemmas = new HashMap<>();
-
-        for (String word : words) {
-            if (word.isBlank()) continue;
-
-            List<String> wordBaseForms = getMorphInfo(word);
-            if (wordBaseForms.isEmpty() || anyWordBaseBelongToParticle(wordBaseForms)) {
-                continue;
-            }
-
-            List<String> normalForms = getNormalForms(word);
-            if (normalForms.isEmpty()) {
-                continue;
-            }
-
-            String normalWord = normalForms.get(0);
-            lemmas.merge(normalWord, 1, Integer::sum);
+        if (text == null || text.isEmpty()) {
+            return Collections.emptyMap();
         }
+
+        String[] tokens = tokenizeText(text);
+        Map<String, Integer> lemmas = new HashMap<>();
+
+        for (String token : tokens) {
+            if (token.isBlank()) {
+                continue;
+            }
+
+            String stem = getCachedStem(token);
+            if (stem == null || isParticle(stem)) {
+                continue;
+            }
+
+            lemmas.merge(stem, 1, Integer::sum);
+        }
+
         return lemmas;
     }
 
-    private boolean anyWordBaseBelongToParticle(List<String> wordBaseForms) {
-        return wordBaseForms.stream().anyMatch(this::isParticle);
-    }
-
-    private boolean isParticle(String wordBase) {
-        for (String property : particlesNames) {
-            if (wordBase.contains(property)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private List<String> getMorphInfo(String word) {
-        if (word.matches("[а-я]+")) {
-            return luceneMorphologyRu.getMorphInfo(word);
-        }
-        else if (word.matches("[a-z]+")) {
-            return luceneMorphologyEn.getMorphInfo(word);
-        }
-        return Collections.emptyList();
-    }
-
     public List<String> getNormalForms(String word) {
-        if (word.matches("[а-я]+")) {
-            return luceneMorphologyRu.getNormalForms(word);
+        if (word == null || word.isEmpty()) {
+            return Collections.emptyList();
         }
-        else if (word.matches("[a-z]+")) {
-            return luceneMorphologyEn.getNormalForms(word);
-        }
-        return Collections.emptyList();
+
+        String stem = getCachedStem(word.toLowerCase());
+        return stem != null ? Collections.singletonList(stem) : Collections.emptyList();
     }
 
-    private String[] arrayContainsWords(String text) {
-        return text.toLowerCase(Locale.ROOT)
-                .replaceAll("([^а-яa-z\\s])", " ")
-                .trim()
-                .split("\\s+");
+    private String[] tokenizeText(String text) {
+        return tokenizer.tokenize(text.toLowerCase()
+                .replaceAll("[^a-zа-яё\\s]", " ")
+                .replaceAll("\\s+", " ")
+                .trim());
+    }
+
+    private String getCachedStem(String word) {
+        return lemmaCache.computeIfAbsent(word, this::getStem);
+    }
+
+    private String getStem(String word) {
+        try {
+            if (word.matches("[а-яё]+")) {
+                return russianStemmer.stem(word).toString();
+            } else if (word.matches("[a-z]+")) {
+                return englishStemmer.stem(word);
+            }
+        } catch (Exception e) {
+            log.warn("Stemming error for word: {}", word, e);
+        }
+        return null;
+    }
+
+    private boolean isParticle(String stem) {
+        return PARTICLES.contains(stem);
     }
 }

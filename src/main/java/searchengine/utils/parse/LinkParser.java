@@ -34,10 +34,13 @@ public class LinkParser {
                 .userAgent(userAgent.getUser(random.nextInt(userAgent.getUsers().size())))
                 .referrer(userAgent.getReferrer())
                 .ignoreHttpErrors(true)
-                .followRedirects(true);
+                .followRedirects(true)
+                .timeout(10_000)
+                .maxBodySize(0);
 
-        code = connection.execute().statusCode();
-        content = code == 200 ? connection.get().html() : "";
+        Connection.Response response = connection.execute();
+        code = response.statusCode();
+        content = code == 200 ? response.parse().html() : "";
 
         Document document = connection.get();
         Elements elements = document.select("body").select("a");
@@ -56,7 +59,7 @@ public class LinkParser {
 
     private boolean isFile(String link) {
         link = link.toLowerCase();
-        return link.matches(".*\\.(jpg|jpeg|png|gif|webp|pdf|eps|xlsx|doc|pptx|docx)$") 
-               || link.contains("?_ga");
+        return link.matches(".*\\.(jpg|jpeg|png|gif|webp|pdf|eps|xlsx|doc|pptx|docx)$")
+                || link.contains("?_ga");
     }
 }

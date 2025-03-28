@@ -10,8 +10,8 @@ import searchengine.model.Site;
 import searchengine.repositories.IndexRepository;
 import searchengine.repositories.LemmaRepository;
 
-import java.io.IOException;
 import java.util.Map;
+
 @RequiredArgsConstructor
 public class LemmaIndexer {
     private final LemmaRepository repositoryLemma;
@@ -19,20 +19,20 @@ public class LemmaIndexer {
     private final Site site;
     private final Page page;
 
-    public void indexing() throws IOException {
+    public void indexing() {
         Map<String, Integer> lemmas = getLemmasOfPage();
         lemmas.forEach(this::saveLemmaAndIndex);
     }
 
     private Map<String, Integer> getLemmasOfPage() {
         LemmaFinder finder = new LemmaFinder();
-
         String content = page.getContent();
 
         Document document = Jsoup.parse(content);
         String titleTagText = document.title();
         String bodyTagText = document.body().text();
         String text = titleTagText + " " + bodyTagText;
+
         return finder.collectLemmas(text);
     }
 
@@ -45,15 +45,15 @@ public class LemmaIndexer {
                 lemmaNew.setLemma(lemma);
                 lemmaNew.setFrequency(1);
                 lemmaDB = repositoryLemma.save(lemmaNew);
-            }
-            else {
+            } else {
                 lemmaDB.setFrequency(lemmaDB.getFrequency() + 1);
                 repositoryLemma.save(lemmaDB);
             }
+
             Index index = new Index();
             index.setPage(page);
-            index.setRank(count);
             index.setLemma(lemmaDB);
+            index.setRank(count.floatValue());
             repositoryIndex.save(index);
         }
     }
