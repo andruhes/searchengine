@@ -69,6 +69,7 @@ public class IndexingServiceImpl implements IndexingService {
         }
 
         SiteIndexer.stopIndexing();
+        LemmaIndexer.stopIndexing();
         System.out.println("** STOP INDEXING ** " + LocalTime.now().truncatedTo(ChronoUnit.SECONDS));
 
         List<Site> siteList = (List<Site>) repositorySite.findAll();

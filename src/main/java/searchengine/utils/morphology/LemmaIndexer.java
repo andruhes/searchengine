@@ -18,8 +18,21 @@ public class LemmaIndexer {
     private final IndexRepository repositoryIndex;
     private final Site site;
     private final Page page;
+    private static volatile boolean stopped = false;
+
+    public static void stopIndexing() {
+        stopped = true;
+    }
+
+    public static boolean isStopped() {
+        return stopped;
+    }
 
     public void indexing() {
+        if (stopped) {
+            return;
+        }
+
         Map<String, Integer> lemmas = getLemmasOfPage();
         lemmas.forEach(this::saveLemmaAndIndex);
     }
@@ -38,6 +51,8 @@ public class LemmaIndexer {
 
     private void saveLemmaAndIndex(String lemma, Integer count) {
         synchronized (site) {
+            if (stopped) return;
+
             Lemma lemmaDB = repositoryLemma.findByLemmaAndSite(lemma, site);
             if (lemmaDB == null) {
                 Lemma lemmaNew = new Lemma();

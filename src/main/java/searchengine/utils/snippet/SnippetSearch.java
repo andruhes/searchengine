@@ -1,69 +1,63 @@
 package searchengine.utils.snippet;
 
-import lombok.Getter;
-import lombok.Setter;
-import lombok.RequiredArgsConstructor;
 import searchengine.utils.morphology.LemmaFinder;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.regex.Pattern;
 
-@Getter
-@Setter
-@RequiredArgsConstructor
 public class SnippetSearch {
-    private static final int LENGTH_SNIPPET = 53;
-    private static final int NUMBER_SNIPPETS = 3;
+    private static final int MAX_SNIPPETS = 3;
+    private static final int MAX_SNIPPET_LENGTH = 160;
+    private static final int WORDS_AROUND = 5;
 
     public static String find(String text, Set<String> lemmas) {
-        Set<String> requiredLemmas = new HashSet<>(lemmas);
-        List<String> snippets = new ArrayList<>();
+        if (text == null || text.isEmpty() || lemmas == null || lemmas.isEmpty()) {
+            return "";
+        }
+
         LemmaFinder finder = new LemmaFinder();
+        String cleanText = text.replaceAll("\\s+", " ");
+        String[] sentences = cleanText.split("(?<=[.!?])\\s+");
+        List<String> snippets = new ArrayList<>();
 
-        for (String word : text.split("([^а-яА-ЯA-Za-z])+")) {
-            if (snippets.size() >= NUMBER_SNIPPETS) break;
+        for (String sentence : sentences) {
+            if (snippets.size() >= MAX_SNIPPETS) {
+                break;
+            }
 
-            List<String> normalFormsWord = finder.getNormalForms(word.toLowerCase());
-            if (normalFormsWord.isEmpty()) continue;
+            String highlighted = highlightMatches(sentence, lemmas, finder);
+            if (!highlighted.equals(sentence)) {
+                snippets.add(truncateSnippet(highlighted));
+            }
+        }
 
-            for (String lemma : requiredLemmas) {
-                if (normalFormsWord.contains(lemma)) {
-                    requiredLemmas.remove(lemma);
-                    snippets.add(generateSnippet(text, word));
-                    break;
+        return snippets.isEmpty()
+                ? truncateSnippet(cleanText)
+                : String.join("<br/><br/>", snippets);
+    }
+
+    private static String highlightMatches(String text, Set<String> lemmas, LemmaFinder finder) {
+        String[] words = text.split(" ");
+        for (int i = 0; i < words.length; i++) {
+            String cleanWord = words[i].replaceAll("[^\\p{L}]", "").toLowerCase();
+            if (!cleanWord.isEmpty()) {
+                List<String> wordLemmas = finder.getNormalForms(cleanWord);
+                for (String lemma : lemmas) {
+                    if (wordLemmas.contains(lemma)) {
+                        words[i] = words[i].replaceAll(
+                                "(?i)(" + Pattern.quote(cleanWord) + ")",
+                                "<b>$1</b>"
+                        );
+                        break;
+                    }
                 }
             }
         }
-        return String.join("<br />", snippets);
+        return String.join(" ", words);
     }
 
-    private static String generateSnippet(String text, String word) {
-        int start = text.indexOf(word);
-        int end = start + word.length();
-        int remainingLength = LENGTH_SNIPPET - word.length();
-
-        end = adjustEndPosition(text, end, remainingLength / 2);
-        start = adjustStartPosition(text, start, remainingLength - (end - start - word.length()));
-
-        return text.substring(start, end).replace(word, "<b>" + word + "</b>");
-    }
-
-    private static int adjustEndPosition(String text, int end, int maxExtension) {
-        int newEnd = Math.min(end + maxExtension, text.length());
-        // Ищем ближайший пробел или конец строки
-        while (newEnd < text.length() && !Character.isWhitespace(text.charAt(newEnd))) {
-            newEnd++;
-        }
-        return newEnd;
-    }
-
-    private static int adjustStartPosition(String text, int start, int maxExtension) {
-        int newStart = Math.max(start - maxExtension, 0);
-        // Ищем ближайший пробел или начало строки
-        while (newStart > 0 && !Character.isWhitespace(text.charAt(newStart))) {
-            newStart--;
-        }
-        return newStart;
+    private static String truncateSnippet(String text) {
+        return text.length() <= MAX_SNIPPET_LENGTH
+                ? text
+                : text.substring(0, MAX_SNIPPET_LENGTH) + "...";
     }
 }
