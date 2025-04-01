@@ -34,7 +34,7 @@ public class LemmaFinder {
         Map<String, Integer> lemmas = new HashMap<>();
 
         for (String token : tokens) {
-            if (token.isBlank()) {
+            if (token.isBlank() || token.length() == 1) { // Исключаем слова из одной буквы
                 continue;
             }
 
@@ -50,7 +50,7 @@ public class LemmaFinder {
     }
 
     public List<String> getNormalForms(String word) {
-        if (word == null || word.isEmpty()) {
+        if (word == null || word.isEmpty() || word.length() == 1) { // Исключаем слова из одной буквы
             return Collections.emptyList();
         }
 

@@ -31,7 +31,7 @@ public class SnippetSearch {
         }
 
         return snippets.isEmpty()
-                ? truncateSnippet(cleanText)
+                ? truncateSnippet(highlightQueryInText(cleanText, lemmas, finder))
                 : String.join("<br/><br/>", snippets);
     }
 
@@ -43,6 +43,7 @@ public class SnippetSearch {
                 List<String> wordLemmas = finder.getNormalForms(cleanWord);
                 for (String lemma : lemmas) {
                     if (wordLemmas.contains(lemma)) {
+                        // Выделяем полное слово, а не только лемму
                         words[i] = words[i].replaceAll(
                                 "(?i)(" + Pattern.quote(cleanWord) + ")",
                                 "<b>$1</b>"
@@ -50,6 +51,20 @@ public class SnippetSearch {
                         break;
                     }
                 }
+            }
+        }
+        return String.join(" ", words);
+    }
+
+    private static String highlightQueryInText(String text, Set<String> lemmas, LemmaFinder finder) {
+        String[] words = text.split(" ");
+        for (int i = 0; i < words.length; i++) {
+            String cleanWord = words[i].replaceAll("[^\\p{L}]", "").toLowerCase();
+            if (!cleanWord.isEmpty() && lemmas.contains(cleanWord)) {
+                words[i] = words[i].replaceAll(
+                        "(?i)(" + Pattern.quote(cleanWord) + ")",
+                        "<b>$1</b>"
+                );
             }
         }
         return String.join(" ", words);

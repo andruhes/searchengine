@@ -17,6 +17,7 @@ import searchengine.utils.snippet.SnippetSearch;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -65,7 +66,7 @@ public class SearchServiceImpl implements SearchService {
             }
 
             lastQuery = query;
-            data = getDataList(indexes, queryLemmas);
+            data = getDataList(indexes, queryLemmas, query);
             endSearchPrint(data.size());
 
             return buildResponse(offset != null ? offset : 0,
@@ -142,7 +143,7 @@ public class SearchServiceImpl implements SearchService {
         return repositoryIndex.findByLemmasAndPages(lemmas, allPages);
     }
 
-    private List<DataSearchItem> getDataList(List<Index> indexes, Set<String> queryLemmas) {
+    private List<DataSearchItem> getDataList(List<Index> indexes, Set<String> queryLemmas, String originalQuery) {
         List<RelevancePage> relevancePages = getRelevantList(indexes);
         List<DataSearchItem> result = new ArrayList<>();
 
@@ -156,18 +157,36 @@ public class SearchServiceImpl implements SearchService {
             if (title.length() > 50) {
                 title = title.substring(0, 50).concat("...");
             }
-            item.setTitle(title);
+            item.setTitle(highlightOriginalQuery(title, originalQuery));
             item.setRelevance(page.getRelevance());
 
             String content = Jsoup.parse(page.getPage().getContent()).body().text();
-            item.setSnippet(SnippetSearch.find(content, queryLemmas));
+            String snippet = SnippetSearch.find(content, queryLemmas);
 
+            // Если не нашли совпадений по леммам, пытаемся найти оригинальный запрос
+            if (!snippet.contains("<b>") && !originalQuery.isEmpty()) {
+                snippet = highlightOriginalQuery(content, originalQuery);
+                if (snippet.length() > 160) {
+                    snippet = snippet.substring(0, 160) + "...";
+                }
+            }
+
+            item.setSnippet(snippet);
             result.add(item);
         }
 
         return result.stream()
                 .sorted(Comparator.comparingDouble(DataSearchItem::getRelevance).reversed())
                 .collect(Collectors.toList());
+    }
+
+    private String highlightOriginalQuery(String text, String query) {
+        if (text == null || query == null || query.isEmpty()) {
+            return text;
+        }
+
+        // Ищем точное совпадение запроса (без учета регистра)
+        return text.replaceAll("(?i)(" + Pattern.quote(query) + ")", "<b>$1</b>");
     }
 
     private List<RelevancePage> getRelevantList(List<Index> indexes) {
